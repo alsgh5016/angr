@@ -13,6 +13,7 @@ from angr.knowledge_plugins.key_definitions.live_definitions import DerefSize
 if TYPE_CHECKING:
     from angr.analyses.reaching_definitions.rd_state import ReachingDefinitionsState
 
+
 class EnvironAtom(Atom):
     def __init__(self, name: str | None):
         self.name = name
@@ -27,6 +28,7 @@ class EnvironAtom(Atom):
     def __repr__(self):
         return f'<EnvironAtom {self.name if self.name is not None else "(dynamic)"}>'
 
+
 class SystemAtom(Atom):
     def __init__(self):
         self.nonce = random.randint(0, 999999999999)
@@ -36,7 +38,7 @@ class SystemAtom(Atom):
         return (self.nonce,)
 
     def __repr__(self):
-        return f'<SystemAtom>'
+        return "<SystemAtom>"
 
 
 class ExecveAtom(Atom):
@@ -49,7 +51,7 @@ class ExecveAtom(Atom):
         return (self.nonce,)
 
     def __repr__(self):
-        return f'<ExecveAtom {self.idx}>'
+        return f"<ExecveAtom {self.idx}>"
 
 
 class LibcStdlibHandlers(FunctionHandler):
@@ -58,21 +60,21 @@ class LibcStdlibHandlers(FunctionHandler):
         buf_atoms = state.deref(data.args_atoms[0], DerefSize.NULL_TERMINATE)
         buf_value = state.get_concrete_value(buf_atoms, cast_to=bytes)
         if buf_value is not None:
-            buf_value = int(buf_value.decode().strip('\0'))
+            buf_value = int(buf_value.decode().strip("\0"))
         data.depends(data.ret_atoms, buf_atoms, value=buf_value)
 
     @FunctionCallDataUnwrapped.decorate
-    def handle_impl_malloc(self, state: "ReachingDefinitionsState", data: FunctionCallDataUnwrapped):
+    def handle_impl_malloc(self, state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped):
         malloc_size = state.get_concrete_value(data.args_atoms[0]) or 48
         heap_ptr = state.heap_allocator.allocate(malloc_size)
         data.depends(data.ret_atoms, value=state.heap_address(heap_ptr))
 
     @FunctionCallDataUnwrapped.decorate
-    def handle_impl_getenv(self, state: "ReachingDefinitionsState", data: FunctionCallDataUnwrapped):
+    def handle_impl_getenv(self, state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped):
         name_atom = state.deref(data.args_atoms[0], DerefSize.NULL_TERMINATE)
         name_value = state.get_concrete_value(name_atom, cast_to=bytes)
         if name_value is not None:
-            name_value = name_value.strip(b'\0').decode()
+            name_value = name_value.strip(b"\0").decode()
         data.depends(None, name_atom)
 
         # store a buffer, registering it as an output of this function
@@ -80,7 +82,7 @@ class LibcStdlibHandlers(FunctionHandler):
         # but also it should be able to be picked up by NULL_TERMINATE reads
         heap_ptr = state.heap_allocator.allocate(2)
         heap_atom = state.deref(heap_ptr, 2)
-        heap_value = claripy.BVS('weh', 8).concat(claripy.BVV(0, 8))
+        heap_value = claripy.BVS("weh", 8).concat(claripy.BVV(0, 8))
         data.depends(heap_atom, EnvironAtom(name_value), value=heap_value)
         data.depends(data.ret_atoms, value=state.heap_address(heap_ptr))
 
@@ -183,4 +185,3 @@ class LibcStdlibHandlers(FunctionHandler):
             # Increment by size of pointer for this arch
             argv_value += state.arch.bytes
             idx += 1
-

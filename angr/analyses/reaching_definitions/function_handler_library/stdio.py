@@ -1,7 +1,7 @@
 import re
 import random
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 import archinfo
 import claripy
@@ -16,6 +16,7 @@ from angr.storage.memory_mixins.paged_memory.pages.multi_values import MultiValu
 
 _l = logging.getLogger(__name__)
 
+
 class StdinAtom(Atom):
     def __init__(self, source: str):
         self.nonce = random.randint(0, 999999999999)
@@ -26,7 +27,8 @@ class StdinAtom(Atom):
         return (self.nonce,)
 
     def __repr__(self):
-        return f'<StdinAtom {self.source}>'
+        return f"<StdinAtom {self.source}>"
+
 
 def parse_format_string(format_string: str) -> tuple[list[str | int], list[SimType], list[str]]:
     result_pieces: list[str | int] = []
@@ -37,7 +39,7 @@ def parse_format_string(format_string: str) -> tuple[list[str | int], list[SimTy
     idx = 0
     for argspec in re.finditer(r"\%([0 #+-]?[0-9*]*\.?\d*([hl]{0,2}|[jztL])?[diuoxXeEfgGaAcpsSn%])", format_string):
         start, end = argspec.span()
-        if format_string[end-1] == '%':
+        if format_string[end - 1] == "%":
             continue
         if start != last_piece:
             result_pieces.append(format_string[last_piece:start])
@@ -50,7 +52,7 @@ def parse_format_string(format_string: str) -> tuple[list[str | int], list[SimTy
             arg = SimTypeInt(signed=True)
         elif fmt == "%u":
             arg = SimTypeInt(signed=False)
-        elif fmt == '%c':
+        elif fmt == "%c":
             arg = SimTypeChar(signed=True)
         else:
             arg = SimTypeBottom()
@@ -70,7 +72,7 @@ class LibcStdioHandlers(FunctionHandler):
         if format_str is None:
             print("Hmmm.... non-constant format string")
             return
-        format_str = format_str.strip(b'\0').decode()
+        format_str = format_str.strip(b"\0").decode()
         arg_pieces, arg_types, formats = parse_format_string(format_str)
         data.reset_prototype(SimTypeFunction(data.prototype.args + tuple(arg_types), data.prototype.returnty), state)
 
@@ -83,12 +85,12 @@ class LibcStdioHandlers(FunctionHandler):
 
             if fmt == "%s":
                 buf_atom = state.deref(atom, 1)
-                buf_data = b'\0'
+                buf_data = b"\0"
             elif fmt == "%u":
                 buf_atom = state.deref(atom, 4, state.arch.memory_endness)
             elif fmt == "%d":
                 buf_atom = state.deref(atom, 4, state.arch.memory_endness)
-            elif fmt == '%c':
+            elif fmt == "%c":
                 buf_atom = state.deref(atom, 1, state.arch.memory_endness)
             else:
                 raise NotImplementedError()
@@ -119,17 +121,22 @@ class LibcStdioHandlers(FunctionHandler):
 
     handle_impl___isoc99_sscanf = handle_impl_sscanf
 
-def handle_printf(state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped, fmt_idx: int) -> tuple[MultiValues | None, Iterable[Atom]]:
-    format_str = state.get_concrete_value(state.deref(data.args_atoms[fmt_idx], DerefSize.NULL_TERMINATE), cast_to=bytes)
+
+def handle_printf(
+    state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped, fmt_idx: int
+) -> tuple[MultiValues | None, Iterable[Atom]]:
+    format_str = state.get_concrete_value(
+        state.deref(data.args_atoms[fmt_idx], DerefSize.NULL_TERMINATE), cast_to=bytes
+    )
     if format_str is None:
         _l.info("Hmmm.... non-constant format string")
         return None, set()
 
-    format_str = format_str.strip(b'\0').decode()
+    format_str = format_str.strip(b"\0").decode()
     arg_pieces, arg_types, formats = parse_format_string(format_str)
     data.reset_prototype(SimTypeFunction(data.prototype.args + tuple(arg_types), data.prototype.returnty), state)
 
-    result = MultiValues(claripy.BVV(b''))
+    result = MultiValues(claripy.BVV(b""))
     source_atoms: set[Atom] = set()
     for piece in arg_pieces:
         if isinstance(piece, str):
@@ -156,13 +163,13 @@ def handle_printf(state: ReachingDefinitionsState, data: FunctionCallDataUnwrapp
                 if buf_data >= 2**31:
                     buf_data -= 2**32
                 buf_data = str(buf_data).encode()
-        elif fmt == '%c':
+        elif fmt == "%c":
             buf_atoms = atom
             buf_data = state.get_concrete_value(atom)
             if buf_data is not None:
                 buf_data = chr(buf_data).encode()
         else:
-            _l.warning(f"Unimplemented printf format string %s", fmt)
+            _l.warning("Unimplemented printf format string %s", fmt)
             buf_atoms = set()
             buf_data = None
         if result is not None:
@@ -170,16 +177,21 @@ def handle_printf(state: ReachingDefinitionsState, data: FunctionCallDataUnwrapp
                 result = result.concat(buf_data)
         source_atoms.update(buf_atoms)
     if result is not None:
-        result = result.concat(b'\0')
+        result = result.concat(b"\0")
 
     return result, source_atoms
 
-def handle_scanf(state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped, fmt_idx: int, source_atoms: Iterable[Atom]):
-    format_str = state.get_concrete_value(state.deref(data.args_atoms[fmt_idx], DerefSize.NULL_TERMINATE), cast_to=bytes)
+
+def handle_scanf(
+    state: ReachingDefinitionsState, data: FunctionCallDataUnwrapped, fmt_idx: int, source_atoms: Iterable[Atom]
+):
+    format_str = state.get_concrete_value(
+        state.deref(data.args_atoms[fmt_idx], DerefSize.NULL_TERMINATE), cast_to=bytes
+    )
     if format_str is None:
         _l.info("Hmmm.... non-constant format string")
         return None, set()
-    format_str = format_str.strip(b'\0').decode()
+    format_str = format_str.strip(b"\0").decode()
     arg_pieces, arg_types, formats = parse_format_string(format_str)
     data.reset_prototype(SimTypeFunction(data.prototype.args + tuple(arg_types), data.prototype.returnty), state)
 
@@ -192,14 +204,14 @@ def handle_scanf(state: ReachingDefinitionsState, data: FunctionCallDataUnwrappe
 
         if fmt == "%s":
             buf_atom = state.deref(atom, 1)
-            buf_data = b'\0'
+            buf_data = b"\0"
         elif fmt == "%u":
             buf_atom = state.deref(atom, 4, state.arch.memory_endness)
         elif fmt == "%d":
             buf_atom = state.deref(atom, 4, state.arch.memory_endness)
-        elif fmt == '%c':
+        elif fmt == "%c":
             buf_atom = state.deref(atom, 1, state.arch.memory_endness)
         else:
-            _l.warning(f"Unimplemented scanf format string %s", fmt)
+            _l.warning("Unimplemented scanf format string %s", fmt)
             continue
         data.depends(buf_atom, source_atoms, value=buf_data)
