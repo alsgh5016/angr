@@ -32,6 +32,7 @@ class SimEngineUnicorn(SuccessorsMixin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._instr_mem_write_addrs = set() # TODO: test by mino
         # Cache of details of basic blocks containing statements that need to re-executed
         self._block_details_cache = {}
         # Addresses of basic blocks which native interface will not execute
@@ -386,6 +387,9 @@ class SimEngineUnicorn(SuccessorsMixin):
             state.inspect.mem_read_expr = curr_value
 
     def _save_mem_write_addrs(self, state):
+        if not hasattr(self, '_instr_mem_write_addrs'): # TODO: test by mino
+            self._instr_mem_write_addrs = set()
+        
         mem_write_addr = state.solver.eval(state.inspect.mem_write_address)
         self._instr_mem_write_addrs.update(range(mem_write_addr, mem_write_addr + state.inspect.mem_write_length))
 
