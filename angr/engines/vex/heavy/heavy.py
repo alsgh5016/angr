@@ -263,7 +263,11 @@ class HeavyVEXMixin(SuccessorsMixin, ClaripyDataMixin, SimStateStorageMixin, VEX
             raise VEXEarlyExit
 
         self.state.scratch.num_insns += 1
-        self.successors.artifacts["insn_addrs"].append(ins_addr)
+
+        try: # TODO: fix it by mino. But is it perfect? I dont know...
+            self.successors.artifacts["insn_addrs"].append(ins_addr)
+        except KeyError as e:
+            l.debug(f"Artifacts Key Error occured: {e}")
 
         self.state.history.recent_instruction_count += 1
         l.debug("IMark: %#x", stmt.addr)
