@@ -57,9 +57,9 @@ class SimWindows(SimOS):
         super().configure_project()
 
         # here are some symbols which we MUST hook, regardless of what the user wants
-        self._weak_hook_symbol("GetProcAddress", L["kernel32.dll"].get("GetProcAddress", self.arch))
-        self._weak_hook_symbol("LoadLibraryA", L["kernel32.dll"].get("LoadLibraryA", self.arch))
-        self._weak_hook_symbol("LoadLibraryExW", L["kernel32.dll"].get("LoadLibraryExW", self.arch))
+        # self._weak_hook_symbol("GetProcAddress", L["kernel32.dll"].get("GetProcAddress", self.arch))
+        # self._weak_hook_symbol("LoadLibraryA", L["kernel32.dll"].get("LoadLibraryA", self.arch))
+        # self._weak_hook_symbol("LoadLibraryExW", L["kernel32.dll"].get("LoadLibraryExW", self.arch))
 
         self._exception_handler = self._find_or_make("KiUserExceptionDispatcher")
         self.project.hook(
